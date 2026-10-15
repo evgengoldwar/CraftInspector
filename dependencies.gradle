@@ -34,7 +34,7 @@
  * For more details, see https://docs.gradle.org/8.0.1/userguide/java_library_plugin.html#sec:java_library_configurations_graph
  */
 dependencies {
-    implementation("com.github.GTNewHorizons:Applied-Energistics-2-Unofficial:rv3-beta-1085-GTNH:dev")
+    implementation("com.github.GTNewHorizons:Applied-Energistics-2-Unofficial:rv3-beta-1074-GTNH:dev")
     // AE2 GUI classes implement NEI interfaces, so NEI has to be visible at compile time
     compileOnly("com.github.GTNewHorizons:NotEnoughItems:2.8.155-GTNH:dev")
 }

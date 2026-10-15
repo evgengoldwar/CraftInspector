@@ -344,14 +344,6 @@ public class GuiCraftHistory extends AEBaseGui {
     }
 
     @Override
-    protected void mouseMovedOrUp(final int x, final int y, final int state) {
-        super.mouseMovedOrUp(x, y, state);
-        if (state >= 0) {
-            this.tableScrollbar.release();
-        }
-    }
-
-    @Override
     protected boolean mouseWheelEvent(final int x, final int y, final int wheel) {
         final int rx = x - this.guiLeft;
         final int ry = y - this.guiTop;
