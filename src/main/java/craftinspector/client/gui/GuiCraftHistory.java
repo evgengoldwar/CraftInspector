@@ -12,6 +12,7 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.inventory.Slot;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
 
@@ -35,6 +36,7 @@ import appeng.container.ContainerNull;
 import appeng.core.AEConfig;
 import appeng.util.Platform;
 import appeng.util.ReadableNumberConverter;
+import cpw.mods.fml.common.Loader;
 import craftinspector.client.ClientHandler;
 import craftinspector.history.CraftRecord;
 import craftinspector.history.ItemStat;
@@ -79,7 +81,12 @@ public class GuiCraftHistory extends AEBaseGui {
     private static final DiagnosticSortButton[] SORT_MODES = { DiagnosticSortButton.TIME, DiagnosticSortButton.QTY,
         DiagnosticSortButton.NAME };
 
+    private static final boolean NEI_LOADED = Loader.isModLoaded("NotEnoughItems");
+
     private final GuiScreen parent;
+    /** Stack under the cursor and its statistics, refreshed every frame. */
+    private IAEStack<?> hoveredStack;
+    private String hoveredInfo;
     private final GuiScrollbar tableScrollbar = new GuiScrollbar();
     private final NumberFormat numberFormat = NumberFormat.getInstance();
 
@@ -458,6 +465,8 @@ public class GuiCraftHistory extends AEBaseGui {
 
     @Override
     public void drawFG(final int offsetX, final int offsetY, final int mouseX, final int mouseY) {
+        this.hoveredStack = null;
+        this.hoveredInfo = null;
         this.drawHeader(mouseX - offsetX, mouseY - offsetY);
         this.drawTable(mouseX - offsetX, mouseY - offsetY);
         this.drawEntries(mouseX - offsetX, mouseY - offsetY);
@@ -547,7 +556,8 @@ public class GuiCraftHistory extends AEBaseGui {
         }
 
         if (hovered >= 0) {
-            this.drawTooltip(mouseX, mouseY, this.buildRecordTooltip(this.records.get(hovered)));
+            final CraftRecord record = this.records.get(hovered);
+            this.showStackTooltip(record.output, this.buildRecordTooltip(record), mouseX, mouseY);
         }
     }
 
@@ -560,7 +570,7 @@ public class GuiCraftHistory extends AEBaseGui {
             .getCurrentScroll() * COLUMNS;
         final int end = Math.min(start + COLUMNS * this.rows, this.visible.size());
         final int hovered = this.hitEntry(mouseX, mouseY);
-        String tooltip = null;
+        ItemStat hoveredStat = null;
 
         for (int index = start; index < end; index++) {
             final ItemStat stat = this.visible.get(index);
@@ -615,13 +625,46 @@ public class GuiCraftHistory extends AEBaseGui {
             this.drawStack(stat.stack, cellX + SECTION_LENGTH - 19, row * SECTION_HEIGHT + ITEMSTACK_TOP_OFFSET);
 
             if (slot == hovered) {
-                tooltip = this.buildStatTooltip(record, stat);
+                hoveredStat = stat;
             }
         }
 
-        if (tooltip != null) {
-            this.drawTooltip(mouseX, mouseY, tooltip);
+        if (hoveredStat != null) {
+            this.showStackTooltip(hoveredStat.stack, this.buildStatTooltip(record, hoveredStat), mouseX, mouseY);
         }
+    }
+
+    /**
+     * Remembers the stack under the cursor so NEI can use it: its key binds (R recipes, U usages, A bookmark, ...)
+     * work through AE2's NEI handler, which asks {@link #getHoveredStack()}. With NEI the statistics are appended to
+     * NEI's item tooltip, without NEI the tooltip is drawn here.
+     */
+    private void showStackTooltip(final IAEStack<?> stack, final String info, final int mouseX, final int mouseY) {
+        this.hoveredStack = stack;
+        this.hoveredInfo = info;
+        if (!NEI_LOADED || this.getHoveredStack() == null) {
+            this.drawTooltip(mouseX, mouseY, info);
+        }
+    }
+
+    @Override
+    public ItemStack getHoveredStack() {
+        return this.hoveredStack != null ? this.hoveredStack.getItemStackForNEI() : null;
+    }
+
+    @Override
+    public List<String> handleItemTooltip(final ItemStack stack, final int mouseX, final int mouseY,
+        final List<String> currentToolTip) {
+        if (this.hoveredInfo != null && stack != null && currentToolTip != null) {
+            final String[] lines = this.hoveredInfo.split("\n");
+            // the first line is the item name, NEI's tooltip already starts with it
+            for (int i = 1; i < lines.length; i++) {
+                if (!lines[i].isEmpty()) {
+                    currentToolTip.add(lines[i]);
+                }
+            }
+        }
+        return currentToolTip;
     }
 
     private static int lerpColor(final int from, final int to, final double t) {
