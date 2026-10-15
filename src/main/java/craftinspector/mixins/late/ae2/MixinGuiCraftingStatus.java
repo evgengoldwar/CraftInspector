@@ -63,18 +63,13 @@ public abstract class MixinGuiCraftingStatus extends GuiCraftingCPU implements I
         final int x = this.craftinspector$buttonX();
         final int y = this.craftinspector$buttonY();
 
-        this.craftinspector$toggleButton = new IconButton(
-                0x43490001,
-                x,
-                y,
-                new ItemStack(Items.writable_book),
-                "");
+        this.craftinspector$toggleButton = new IconButton(0x43490001, x, y, new ItemStack(Items.writable_book), "");
         this.craftinspector$historyButton = new IconButton(
-                0x43490002,
-                x + craftinspector$BUTTON_SIZE + 2,
-                y,
-                new ItemStack(Items.clock),
-                "");
+            0x43490002,
+            x + craftinspector$BUTTON_SIZE + 2,
+            y,
+            new ItemStack(Items.clock),
+            "");
         this.buttonList.add(this.craftinspector$toggleButton);
         this.buttonList.add(this.craftinspector$historyButton);
         this.craftinspector$updateButtons();
@@ -99,7 +94,7 @@ public abstract class MixinGuiCraftingStatus extends GuiCraftingCPU implements I
     /** Keeps NEI from drawing its item panel over the buttons. */
     @Inject(method = "hideItemPanelSlot", at = @At("RETURN"), cancellable = true, require = 0)
     private void craftinspector$hideItemPanelSlot(final int x, final int y, final int w, final int h,
-            final CallbackInfoReturnable<Boolean> cir) {
+        final CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValueZ()) {
             return;
         }
@@ -124,24 +119,21 @@ public abstract class MixinGuiCraftingStatus extends GuiCraftingCPU implements I
         if (this.craftinspector$toggleButton != null) {
             this.craftinspector$toggleButton.setDotColor(this.craftinspector$enabled ? 0xFF3FD13F : 0xFFD13F3F);
             this.craftinspector$toggleButton.setTootipString(
-                    StatCollector.translateToLocal("craftinspector.button.toggle") + "\n"
-                            + (this.craftinspector$enabled
-                                    ? EnumChatFormatting.GREEN
-                                            + StatCollector.translateToLocal("craftinspector.button.toggle.on")
-                                    : EnumChatFormatting.RED
-                                            + StatCollector.translateToLocal("craftinspector.button.toggle.off"))
-                            + EnumChatFormatting.RESET
-                            + "\n"
-                            + EnumChatFormatting.GRAY
-                            + StatCollector.translateToLocal("craftinspector.button.toggle.tip"));
+                StatCollector.translateToLocal("craftinspector.button.toggle") + "\n"
+                    + (this.craftinspector$enabled
+                        ? EnumChatFormatting.GREEN + StatCollector.translateToLocal("craftinspector.button.toggle.on")
+                        : EnumChatFormatting.RED + StatCollector.translateToLocal("craftinspector.button.toggle.off"))
+                    + EnumChatFormatting.RESET
+                    + "\n"
+                    + EnumChatFormatting.GRAY
+                    + StatCollector.translateToLocal("craftinspector.button.toggle.tip"));
         }
         if (this.craftinspector$historyButton != null) {
             this.craftinspector$historyButton.setTootipString(
-                    StatCollector.translateToLocal("craftinspector.button.history") + "\n"
-                            + EnumChatFormatting.GRAY
-                            + StatCollector.translateToLocalFormatted(
-                                    "craftinspector.button.history.tip",
-                                    this.craftinspector$records));
+                StatCollector.translateToLocal("craftinspector.button.history") + "\n"
+                    + EnumChatFormatting.GRAY
+                    + StatCollector
+                        .translateToLocalFormatted("craftinspector.button.history.tip", this.craftinspector$records));
         }
     }
 }

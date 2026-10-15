@@ -83,7 +83,12 @@ public final class ServerHandler {
     }
 
     private static void sendState(final EntityPlayerMP player, final CraftHistory history) {
-        CINetwork.CHANNEL.sendTo(new MsgState(history.isEnabled(), history.getRecords().size()), player);
+        CINetwork.CHANNEL.sendTo(
+            new MsgState(
+                history.isEnabled(),
+                history.getRecords()
+                    .size()),
+            player);
     }
 
     private static void sendHistory(final EntityPlayerMP player, final IGrid grid, final CraftHistory history) {
@@ -98,7 +103,7 @@ public final class ServerHandler {
             for (final ICraftingCPU cpu : cg.getCpus()) {
                 if (cpu instanceof ICraftTrackerHolder holder && holder.craftinspector$getTracker() != null) {
                     final CraftRecord snapshot = holder.craftinspector$getTracker()
-                            .snapshot(holder.craftinspector$getElapsed());
+                        .snapshot(holder.craftinspector$getElapsed());
                     if (snapshot != null) {
                         running.add(snapshot);
                     }
@@ -128,7 +133,7 @@ public final class ServerHandler {
             final int from = part * MsgHistoryPart.PART_SIZE;
             final int to = Math.min(data.length, from + MsgHistoryPart.PART_SIZE);
             CINetwork.CHANNEL
-                    .sendTo(new MsgHistoryPart(transfer, part, total, Arrays.copyOfRange(data, from, to)), player);
+                .sendTo(new MsgHistoryPart(transfer, part, total, Arrays.copyOfRange(data, from, to)), player);
         }
     }
 }

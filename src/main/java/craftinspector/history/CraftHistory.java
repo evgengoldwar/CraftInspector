@@ -86,7 +86,9 @@ public class CraftHistory {
             }
             this.records.add(record);
         }
-        this.records.sort(Comparator.comparingLong(CraftRecord::getEndTime).reversed());
+        this.records.sort(
+            Comparator.comparingLong(CraftRecord::getEndTime)
+                .reversed());
         this.trim();
     }
 }

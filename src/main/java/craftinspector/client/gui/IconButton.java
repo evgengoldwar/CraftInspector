@@ -45,11 +45,11 @@ public class IconButton extends GuiAeButton {
             GL11.glEnable(GL12.GL_RESCALE_NORMAL);
             GL11.glEnable(GL11.GL_DEPTH_TEST);
             RENDER_ITEM.renderItemAndEffectIntoGUI(
-                    mc.fontRenderer,
-                    mc.getTextureManager(),
-                    this.icon,
-                    this.xPosition + 1,
-                    this.yPosition + 1);
+                mc.fontRenderer,
+                mc.getTextureManager(),
+                this.icon,
+                this.xPosition + 1,
+                this.yPosition + 1);
             RenderHelper.disableStandardItemLighting();
             GL11.glPopAttrib();
         }

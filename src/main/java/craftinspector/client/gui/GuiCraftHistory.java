@@ -95,7 +95,10 @@ public class GuiCraftHistory extends AEBaseGui {
         this.xSize = GUI_WIDTH;
         this.ySize = GUI_HEIGHT;
         this.setScrollBar(new GuiScrollbar());
-        this.tableScrollbar.setLeft(-16).setTop(19).setWidth(12).setHeight(TABLE_HEIGHT - 27);
+        this.tableScrollbar.setLeft(-16)
+            .setTop(19)
+            .setWidth(12)
+            .setHeight(TABLE_HEIGHT - 27);
     }
 
     public void setRecords(final List<CraftRecord> records) {
@@ -150,7 +153,9 @@ public class GuiCraftHistory extends AEBaseGui {
     }
 
     private void updateButtonLabels() {
-        this.sortButton.displayString = tr("sort." + this.sortMode.name().toLowerCase(Locale.ROOT));
+        this.sortButton.displayString = tr(
+            "sort." + this.sortMode.name()
+                .toLowerCase(Locale.ROOT));
         this.filterButton.displayString = tr(this.onlyCrafted ? "filter.crafted" : "filter.all");
     }
 
@@ -160,34 +165,47 @@ public class GuiCraftHistory extends AEBaseGui {
         final CraftRecord record = this.getSelected();
         if (record != null) {
             final String search = this.searchField == null ? ""
-                    : this.searchField.getText().toLowerCase(Locale.ROOT).trim();
+                : this.searchField.getText()
+                    .toLowerCase(Locale.ROOT)
+                    .trim();
             for (final ItemStat stat : record.getStats()) {
                 this.maxCraftTime = Math.max(this.maxCraftTime, stat.getCraftTime(record.duration));
                 if (this.onlyCrafted && !stat.isCrafted()) {
                     continue;
                 }
-                if (!search.isEmpty()
-                        && !Platform.getItemDisplayName(stat.stack).toLowerCase(Locale.ROOT).contains(search)) {
+                if (!search.isEmpty() && !Platform.getItemDisplayName(stat.stack)
+                    .toLowerCase(Locale.ROOT)
+                    .contains(search)) {
                     continue;
                 }
                 this.visible.add(stat);
             }
 
             final long duration = record.duration;
-            final Comparator<ItemStat> byName = Comparator
-                    .comparing(s -> Platform.getItemDisplayName(s.stack).toLowerCase(Locale.ROOT));
+            final Comparator<ItemStat> byName = Comparator.comparing(
+                s -> Platform.getItemDisplayName(s.stack)
+                    .toLowerCase(Locale.ROOT));
             switch (this.sortMode) {
                 case TIME -> this.visible.sort(
-                        Comparator.comparingLong((ItemStat s) -> s.getCraftTime(duration)).reversed()
-                                .thenComparing(Comparator.comparingLong(GuiCraftHistory::amountOf).reversed()));
-                case AMOUNT -> this.visible.sort(Comparator.comparingLong(GuiCraftHistory::amountOf).reversed());
+                    Comparator.comparingLong((ItemStat s) -> s.getCraftTime(duration))
+                        .reversed()
+                        .thenComparing(
+                            Comparator.comparingLong(GuiCraftHistory::amountOf)
+                                .reversed()));
+                case AMOUNT -> this.visible.sort(
+                    Comparator.comparingLong(GuiCraftHistory::amountOf)
+                        .reversed());
                 case NAME -> this.visible.sort(byName);
             }
         }
 
         final int rows = (this.visible.size() + COLUMNS - 1) / COLUMNS;
-        this.getScrollBar().setTop(19).setLeft(218).setHeight(137);
-        this.getScrollBar().setRange(0, Math.max(0, rows - ROWS), 1);
+        this.getScrollBar()
+            .setTop(19)
+            .setLeft(218)
+            .setHeight(137);
+        this.getScrollBar()
+            .setRange(0, Math.max(0, rows - ROWS), 1);
         this.tableScrollbar.setRange(0, Math.max(0, this.records.size() - ROWS), 1);
     }
 
@@ -252,14 +270,14 @@ public class GuiCraftHistory extends AEBaseGui {
         final int hit = this.hitRecord(xCoord - this.guiLeft, yCoord - this.guiTop);
         if (hit >= 0 && hit != this.selected) {
             this.selected = hit;
-            this.getScrollBar().setCurrentScroll(0);
+            this.getScrollBar()
+                .setCurrentScroll(0);
             this.rebuild();
         }
     }
 
     @Override
-    protected void handleMouseClick(final Slot slot, final int slotIdx, final int clickedButton,
-            final int clickType) {
+    protected void handleMouseClick(final Slot slot, final int slotIdx, final int clickedButton, final int clickType) {
         // this screen has no real inventory, never send slot clicks to the server
     }
 
@@ -296,8 +314,8 @@ public class GuiCraftHistory extends AEBaseGui {
     /** @return index of the order under the cursor, -1 if none. Coordinates are relative to the GUI. */
     private int hitRecord(final int x, final int y) {
         if (x < TABLE_SLOT_X || x >= TABLE_SLOT_X + TABLE_SLOT_WIDTH
-                || y < TABLE_SLOT_Y
-                || y >= TABLE_SLOT_Y + ROWS * TABLE_SLOT_HEIGHT) {
+            || y < TABLE_SLOT_Y
+            || y >= TABLE_SLOT_Y + ROWS * TABLE_SLOT_HEIGHT) {
             return -1;
         }
         final int index = this.tableScrollbar.getCurrentScroll() + (y - TABLE_SLOT_Y) / TABLE_SLOT_HEIGHT;
@@ -378,7 +396,7 @@ public class GuiCraftHistory extends AEBaseGui {
             int y = 70;
             for (final String line : lines) {
                 this.fontRendererObj
-                        .drawString(line, 113 - this.fontRendererObj.getStringWidth(line) / 2, y, COLOR_TEXT);
+                    .drawString(line, 113 - this.fontRendererObj.getStringWidth(line) / 2, y, COLOR_TEXT);
                 y += 10;
             }
         }
@@ -428,11 +446,11 @@ public class GuiCraftHistory extends AEBaseGui {
 
             // status bar at the bottom of the slot
             drawRect(
-                    x + 1,
-                    y + TABLE_SLOT_HEIGHT - 2,
-                    x + TABLE_SLOT_WIDTH - 2,
-                    y + TABLE_SLOT_HEIGHT - 1,
-                    statusBarColor(record.status));
+                x + 1,
+                y + TABLE_SLOT_HEIGHT - 2,
+                x + TABLE_SLOT_WIDTH - 2,
+                y + TABLE_SLOT_HEIGHT - 1,
+                statusBarColor(record.status));
         }
 
         if (hovered >= 0) {
@@ -445,7 +463,8 @@ public class GuiCraftHistory extends AEBaseGui {
         if (record == null) {
             return;
         }
-        final int start = this.getScrollBar().getCurrentScroll() * COLUMNS;
+        final int start = this.getScrollBar()
+            .getCurrentScroll() * COLUMNS;
         final int end = Math.min(start + COLUMNS * ROWS, this.visible.size());
         final int hovered = this.hitEntry(mouseX, mouseY);
         String tooltip = null;
@@ -465,8 +484,9 @@ public class GuiCraftHistory extends AEBaseGui {
 
             final List<String> lines = new ArrayList<>();
             if (stat.isCrafted()) {
-                lines.add(tr("crafted") + ": " + ReadableNumberConverter.INSTANCE
-                        .toWideReadableForm(Math.max(stat.returned, stat.planned)));
+                lines.add(
+                    tr("crafted") + ": "
+                        + ReadableNumberConverter.INSTANCE.toWideReadableForm(Math.max(stat.returned, stat.planned)));
             }
             if (stat.fromStorage > 0) {
                 lines.add(tr("stored") + ": " + ReadableNumberConverter.INSTANCE.toWideReadableForm(stat.fromStorage));
@@ -485,10 +505,10 @@ public class GuiCraftHistory extends AEBaseGui {
             for (final String line : lines) {
                 final int width = 4 + this.fontRendererObj.getStringWidth(line);
                 this.fontRendererObj.drawString(
-                        line,
-                        (int) ((cellX + SECTION_LENGTH - 19 - (width * 0.5)) * 2),
-                        (row * SECTION_HEIGHT + ITEMSTACK_TOP_OFFSET + 6 - negY + downY) * 2,
-                        COLOR_TEXT);
+                    line,
+                    (int) ((cellX + SECTION_LENGTH - 19 - (width * 0.5)) * 2),
+                    (row * SECTION_HEIGHT + ITEMSTACK_TOP_OFFSET + 6 - negY + downY) * 2,
+                    COLOR_TEXT);
                 downY += 5;
             }
             GL11.glPopMatrix();
@@ -523,32 +543,69 @@ public class GuiCraftHistory extends AEBaseGui {
         final EnumChatFormatting green = EnumChatFormatting.GREEN;
         final EnumChatFormatting reset = EnumChatFormatting.RESET;
         final StringBuilder sb = new StringBuilder();
-        sb.append(Platform.getItemDisplayName(record.output)).append('\n');
-        sb.append(green).append(tr("requested")).append(reset).append(": ")
-                .append(this.numberFormat.format(record.requested)).append('\n');
-        sb.append(green).append(tr("status")).append(reset).append(": ").append(statusText(record.status))
-                .append('\n');
-        sb.append(green).append(tr("started")).append(reset).append(": ")
-                .append(new SimpleDateFormat("dd.MM HH:mm:ss").format(new Date(record.startTime))).append('\n');
-        sb.append(green).append(tr("duration")).append(reset).append(": ").append(formatTime(record.duration))
-                .append('\n');
+        sb.append(Platform.getItemDisplayName(record.output))
+            .append('\n');
+        sb.append(green)
+            .append(tr("requested"))
+            .append(reset)
+            .append(": ")
+            .append(this.numberFormat.format(record.requested))
+            .append('\n');
+        sb.append(green)
+            .append(tr("status"))
+            .append(reset)
+            .append(": ")
+            .append(statusText(record.status))
+            .append('\n');
+        sb.append(green)
+            .append(tr("started"))
+            .append(reset)
+            .append(": ")
+            .append(new SimpleDateFormat("dd.MM HH:mm:ss").format(new Date(record.startTime)))
+            .append('\n');
+        sb.append(green)
+            .append(tr("duration"))
+            .append(reset)
+            .append(": ")
+            .append(formatTime(record.duration))
+            .append('\n');
         if (record.aeElapsed > 0) {
-            sb.append(green).append(tr("aetime")).append(reset).append(": ")
-                    .append(formatTime(record.aeElapsed / 1_000_000L)).append('\n');
+            sb.append(green)
+                .append(tr("aetime"))
+                .append(reset)
+                .append(": ")
+                .append(formatTime(record.aeElapsed / 1_000_000L))
+                .append('\n');
         }
         if (record.cpuName != null && !record.cpuName.isEmpty()) {
-            sb.append(green).append(tr("cpu")).append(reset).append(": ").append(record.cpuName).append('\n');
-        }
-        sb.append(green).append(tr("player")).append(reset).append(": ")
-                .append(record.player == null || record.player.isEmpty() ? tr("machine") : record.player)
+            sb.append(green)
+                .append(tr("cpu"))
+                .append(reset)
+                .append(": ")
+                .append(record.cpuName)
                 .append('\n');
+        }
+        sb.append(green)
+            .append(tr("player"))
+            .append(reset)
+            .append(": ")
+            .append(record.player == null || record.player.isEmpty() ? tr("machine") : record.player)
+            .append('\n');
         if (record.coProcessors > 0) {
-            sb.append(green).append(tr("coprocessors")).append(reset).append(": ")
-                    .append(this.numberFormat.format(record.coProcessors)).append('\n');
+            sb.append(green)
+                .append(tr("coprocessors"))
+                .append(reset)
+                .append(": ")
+                .append(this.numberFormat.format(record.coProcessors))
+                .append('\n');
         }
         if (record.bytes > 0) {
-            sb.append(green).append(tr("bytes")).append(reset).append(": ")
-                    .append(this.numberFormat.format(record.bytes)).append('\n');
+            sb.append(green)
+                .append(tr("bytes"))
+                .append(reset)
+                .append(": ")
+                .append(this.numberFormat.format(record.bytes))
+                .append('\n');
         }
         return sb.toString();
     }
@@ -557,40 +614,80 @@ public class GuiCraftHistory extends AEBaseGui {
         final EnumChatFormatting green = EnumChatFormatting.GREEN;
         final EnumChatFormatting reset = EnumChatFormatting.RESET;
         final StringBuilder sb = new StringBuilder();
-        sb.append(Platform.getItemDisplayName(stat.stack)).append('\n');
+        sb.append(Platform.getItemDisplayName(stat.stack))
+            .append('\n');
         if (stat.isCrafted()) {
-            sb.append(green).append(tr("crafted")).append(reset).append(": ")
-                    .append(this.numberFormat.format(stat.returned)).append(" / ")
-                    .append(this.numberFormat.format(stat.planned)).append(' ').append(tr("planned")).append('\n');
-            sb.append(green).append(tr("pushes")).append(reset).append(": ")
-                    .append(this.numberFormat.format(stat.pushes)).append('\n');
+            sb.append(green)
+                .append(tr("crafted"))
+                .append(reset)
+                .append(": ")
+                .append(this.numberFormat.format(stat.returned))
+                .append(" / ")
+                .append(this.numberFormat.format(stat.planned))
+                .append(' ')
+                .append(tr("planned"))
+                .append('\n');
+            sb.append(green)
+                .append(tr("pushes"))
+                .append(reset)
+                .append(": ")
+                .append(this.numberFormat.format(stat.pushes))
+                .append('\n');
         }
         if (stat.fromStorage > 0) {
-            sb.append(green).append(tr("stored")).append(reset).append(": ")
-                    .append(this.numberFormat.format(stat.fromStorage)).append('\n');
+            sb.append(green)
+                .append(tr("stored"))
+                .append(reset)
+                .append(": ")
+                .append(this.numberFormat.format(stat.fromStorage))
+                .append('\n');
         }
         if (stat.emitted > 0) {
-            sb.append(green).append(tr("missing")).append(reset).append(": ")
-                    .append(this.numberFormat.format(stat.emitted)).append('\n');
+            sb.append(green)
+                .append(tr("missing"))
+                .append(reset)
+                .append(": ")
+                .append(this.numberFormat.format(stat.emitted))
+                .append('\n');
         }
         final long time = stat.getCraftTime(record.duration);
         if (time > 0) {
-            sb.append(green).append(tr("time")).append(reset).append(": ").append(formatTime(time));
+            sb.append(green)
+                .append(tr("time"))
+                .append(reset)
+                .append(": ")
+                .append(formatTime(time));
             if (record.duration > 0) {
-                sb.append(" (").append(EnumChatFormatting.GOLD)
-                        .append(String.format("%.0f%%", 100.0 * time / record.duration)).append(reset)
-                        .append(' ').append(tr("oforder")).append(')');
+                sb.append(" (")
+                    .append(EnumChatFormatting.GOLD)
+                    .append(String.format("%.0f%%", 100.0 * time / record.duration))
+                    .append(reset)
+                    .append(' ')
+                    .append(tr("oforder"))
+                    .append(')');
             }
             sb.append('\n');
-            sb.append(green).append(tr("firstpush")).append(reset).append(": +").append(formatTime(stat.firstPush))
-                    .append('\n');
+            sb.append(green)
+                .append(tr("firstpush"))
+                .append(reset)
+                .append(": +")
+                .append(formatTime(stat.firstPush))
+                .append('\n');
             if (stat.lastReturn >= 0) {
-                sb.append(green).append(tr("lastreturn")).append(reset).append(": +")
-                        .append(formatTime(stat.lastReturn)).append('\n');
+                sb.append(green)
+                    .append(tr("lastreturn"))
+                    .append(reset)
+                    .append(": +")
+                    .append(formatTime(stat.lastReturn))
+                    .append('\n');
             }
             if (stat.pushes > 0) {
-                sb.append(green).append(tr("perpush")).append(reset).append(": ")
-                        .append(formatTime(time / stat.pushes)).append('\n');
+                sb.append(green)
+                    .append(tr("perpush"))
+                    .append(reset)
+                    .append(": ")
+                    .append(formatTime(time / stat.pushes))
+                    .append('\n');
             }
         }
         return sb.toString();
@@ -636,8 +733,7 @@ public class GuiCraftHistory extends AEBaseGui {
         if (this.fontRendererObj.getStringWidth(text) <= width) {
             return text;
         }
-        return this.fontRendererObj.trimStringToWidth(text, width - this.fontRendererObj.getStringWidth("..."))
-                + "...";
+        return this.fontRendererObj.trimStringToWidth(text, width - this.fontRendererObj.getStringWidth("...")) + "...";
     }
 
     /** Formats milliseconds as "4.2s", "3:05" or "1:02:03". */

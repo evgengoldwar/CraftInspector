@@ -42,7 +42,8 @@ public class CraftRecord {
     private final Map<IAEStack<?>, ItemStat> stats = new LinkedHashMap<>();
 
     public CraftRecord() {
-        this.uid = ThreadLocalRandom.current().nextLong();
+        this.uid = ThreadLocalRandom.current()
+            .nextLong();
     }
 
     public Collection<ItemStat> getStats() {
@@ -89,7 +90,7 @@ public class CraftRecord {
     }
 
     public void start(final IAEStack<?> output, final String cpuName, final String player, final long bytes,
-            final int coProcessors) {
+        final int coProcessors) {
         this.output = normalize(output);
         this.requested = output.getStackSize();
         this.cpuName = cpuName == null ? "" : cpuName;
@@ -102,7 +103,8 @@ public class CraftRecord {
     /** Adds a job that was merged into the running order. */
     public void merge(final CraftRecord planning, final IAEStack<?> addedOutput, final long addedBytes) {
         for (final ItemStat other : planning.stats.values()) {
-            this.stat(other.stack).mergeFrom(other);
+            this.stat(other.stack)
+                .mergeFrom(other);
         }
         if (addedOutput != null) {
             this.requested += addedOutput.getStackSize();

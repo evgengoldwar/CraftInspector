@@ -84,7 +84,7 @@ public abstract class MixinCraftingCPUCluster implements ICraftTrackerHolder {
 
     @Inject(method = "submitJob", at = @At("HEAD"))
     private void craftinspector$beforeSubmit(final IGrid g, final ICraftingJob<?> job, final BaseActionSource src,
-            final ICraftingRequester requestingMachine, final CallbackInfoReturnable<ICraftingLink> cir) {
+        final ICraftingRequester requestingMachine, final CallbackInfoReturnable<ICraftingLink> cir) {
         this.craftinspector$merged = false;
         final CraftHistory history = craftinspector$history(g);
         // The decision to track is made once, when the order starts.
@@ -93,7 +93,7 @@ public abstract class MixinCraftingCPUCluster implements ICraftTrackerHolder {
 
     @Inject(method = "submitJob", at = @At("RETURN"))
     private void craftinspector$afterSubmit(final IGrid g, final ICraftingJob<?> job, final BaseActionSource src,
-            final ICraftingRequester requestingMachine, final CallbackInfoReturnable<ICraftingLink> cir) {
+        final ICraftingRequester requestingMachine, final CallbackInfoReturnable<ICraftingLink> cir) {
         final CraftRecord planning = this.craftinspector$planning;
         this.craftinspector$planning = null;
 
@@ -121,7 +121,7 @@ public abstract class MixinCraftingCPUCluster implements ICraftTrackerHolder {
 
     @Inject(method = "mergeJob", at = @At("HEAD"))
     private void craftinspector$beforeMerge(final IGrid g, final ICraftingJob<?> job, final BaseActionSource src,
-            final ICraftingRequester requestingMachine, final CallbackInfoReturnable<ICraftingLink> cir) {
+        final ICraftingRequester requestingMachine, final CallbackInfoReturnable<ICraftingLink> cir) {
         this.craftinspector$planningOuter = this.craftinspector$planning;
         // Merged jobs are tracked only when the order they are merged into is tracked.
         this.craftinspector$planning = this.craftinspector$tracker != null ? new CraftRecord() : null;
@@ -129,7 +129,7 @@ public abstract class MixinCraftingCPUCluster implements ICraftTrackerHolder {
 
     @Inject(method = "mergeJob", at = @At("RETURN"))
     private void craftinspector$afterMerge(final IGrid g, final ICraftingJob<?> job, final BaseActionSource src,
-            final ICraftingRequester requestingMachine, final CallbackInfoReturnable<ICraftingLink> cir) {
+        final ICraftingRequester requestingMachine, final CallbackInfoReturnable<ICraftingLink> cir) {
         final CraftRecord planning = this.craftinspector$planning;
         this.craftinspector$planning = this.craftinspector$planningOuter;
         this.craftinspector$planningOuter = null;
@@ -159,7 +159,7 @@ public abstract class MixinCraftingCPUCluster implements ICraftTrackerHolder {
 
     @Inject(method = "addCrafting", at = @At("HEAD"))
     private void craftinspector$onAddCrafting(final ICraftingPatternDetails details, final long crafts,
-            final CallbackInfo ci) {
+        final CallbackInfo ci) {
         if (this.craftinspector$planning != null) {
             this.craftinspector$planning.onPlanned(details, crafts);
         }
@@ -168,12 +168,12 @@ public abstract class MixinCraftingCPUCluster implements ICraftTrackerHolder {
     // ------------------------------------------------------------------ execution
 
     @WrapOperation(
-            method = "executeCrafting",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lappeng/api/networking/crafting/ICraftingMedium;pushPattern(Lappeng/api/networking/crafting/ICraftingPatternDetails;Lnet/minecraft/inventory/InventoryCrafting;)Z"))
+        method = "executeCrafting",
+        at = @At(
+            value = "INVOKE",
+            target = "Lappeng/api/networking/crafting/ICraftingMedium;pushPattern(Lappeng/api/networking/crafting/ICraftingPatternDetails;Lnet/minecraft/inventory/InventoryCrafting;)Z"))
     private boolean craftinspector$onPushPattern(final ICraftingMedium medium, final ICraftingPatternDetails details,
-            final InventoryCrafting table, final Operation<Boolean> original) {
+        final InventoryCrafting table, final Operation<Boolean> original) {
         final boolean pushed = original.call(medium, details, table);
         if (pushed && this.craftinspector$tracker != null) {
             this.craftinspector$tracker.onPush(details);
