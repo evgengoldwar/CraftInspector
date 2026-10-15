@@ -44,7 +44,8 @@ import craftinspector.network.MsgAction;
  * Shows the last crafting orders of the network. Looks like AE2's crafting status GUI: on the left the orders are
  * listed like crafting CPUs, on the right every component of the selected order is shown with the amount crafted, the
  * amount taken from storage and the time it took to craft it. Sorting by time puts the slowest components first, so
- * the bottlenecks of the network are easy to spot.
+ * the bottlenecks of the network are easy to spot; crafted cells are tinted from white to red relative to the slowest
+ * component.
  */
 public class GuiCraftHistory extends AEBaseGui {
 
@@ -70,12 +71,10 @@ public class GuiCraftHistory extends AEBaseGui {
     private static final int COLOR_TEXT = 0x404040;
     private static final int COLOR_NAME = 0x202020;
 
-    /** Colour of the time text for a component that took (almost) no time of the order. */
-    private static final int TIME_TEXT_FAST = 0xFF5A5A5A;
-    /** Colour of the time text for a component that took the whole order time. */
-    private static final int TIME_TEXT_SLOW = 0xFFC81E1E;
-    private static final int BAR_COLOR_FAST = 0xFFFAD250;
-    private static final int BAR_COLOR_SLOW = 0xFFD72D2D;
+    /** Cell background of the fastest crafted components. */
+    private static final int TIME_COLOR_FAST = 0xFFF4F4F4;
+    /** Cell background of the slowest crafted component of the order. */
+    private static final int TIME_COLOR_SLOW = 0xFFF08A8A;
 
     private static final DiagnosticSortButton[] SORT_MODES = { DiagnosticSortButton.TIME, DiagnosticSortButton.QTY,
         DiagnosticSortButton.NAME };
@@ -87,6 +86,8 @@ public class GuiCraftHistory extends AEBaseGui {
     private List<CraftRecord> records;
     private boolean collectionEnabled;
     private int selected = 0;
+    /** Craft time of the slowest component of the selected order, the reference for the cell colours. */
+    private long maxCraftTime;
     private DiagnosticSortButton sortMode = DiagnosticSortButton.TIME;
     private SortDir sortDir = SortDir.DESCENDING;
     private boolean onlyCrafted = false;
@@ -205,8 +206,12 @@ public class GuiCraftHistory extends AEBaseGui {
 
     private void rebuild() {
         this.visible.clear();
+        this.maxCraftTime = 0;
         final CraftRecord record = this.getSelected();
         if (record != null) {
+            for (final ItemStat stat : record.getStats()) {
+                this.maxCraftTime = Math.max(this.maxCraftTime, stat.getCraftTime(record.duration));
+            }
             final String search = this.searchField == null ? ""
                 : this.searchField.getText()
                     .toLowerCase(Locale.ROOT)
@@ -565,11 +570,15 @@ public class GuiCraftHistory extends AEBaseGui {
             final int cellX = column * (1 + SECTION_LENGTH) + ITEMSTACK_LEFT_OFFSET;
 
             final long time = stat.getCraftTime(record.duration);
-            final double share = time > 0 && record.duration > 0
-                ? Math.min(1.0, (double) time / (double) record.duration)
-                : 0;
-            if (time > 0) {
-                this.drawTimeBar(cellX, row * SECTION_HEIGHT + ITEMSTACK_TOP_OFFSET - 3, share);
+            if (time > 0 && this.maxCraftTime > 0) {
+                final int cellY = row * SECTION_HEIGHT + ITEMSTACK_TOP_OFFSET - 3;
+                final double ratio = Math.min(1.0, (double) time / (double) this.maxCraftTime);
+                drawRect(
+                    cellX,
+                    cellY,
+                    cellX + SECTION_LENGTH,
+                    cellY + SECTION_HEIGHT - 1,
+                    lerpColor(TIME_COLOR_FAST, TIME_COLOR_SLOW, ratio));
             }
 
             final List<String> lines = new ArrayList<>();
@@ -584,24 +593,21 @@ public class GuiCraftHistory extends AEBaseGui {
             if (stat.emitted > 0) {
                 lines.add(tr("missing") + ": " + ReadableNumberConverter.INSTANCE.toWideReadableForm(stat.emitted));
             }
-            int timeLine = -1;
             if (time > 0) {
-                timeLine = lines.size();
-                lines.add(tr("time") + ": " + formatTime(time) + " (" + Math.round(share * 100) + "%)");
+                lines.add(tr("time") + ": " + formatTime(time));
             }
 
             GL11.glPushMatrix();
             GL11.glScaled(0.5, 0.5, 0.5);
             final int negY = ((lines.size() - 1) * 5) / 2;
             int downY = 0;
-            for (int i = 0; i < lines.size(); i++) {
-                final String line = lines.get(i);
+            for (final String line : lines) {
                 final int width = 4 + this.fontRendererObj.getStringWidth(line);
                 this.fontRendererObj.drawString(
                     line,
                     (int) ((cellX + SECTION_LENGTH - 19 - (width * 0.5)) * 2),
                     (row * SECTION_HEIGHT + ITEMSTACK_TOP_OFFSET + 6 - negY + downY) * 2,
-                    i == timeLine ? lerpColor(TIME_TEXT_FAST, TIME_TEXT_SLOW, share) & 0xFFFFFF : COLOR_TEXT);
+                    COLOR_TEXT);
                 downY += 5;
             }
             GL11.glPopMatrix();
@@ -616,16 +622,6 @@ public class GuiCraftHistory extends AEBaseGui {
         if (tooltip != null) {
             this.drawTooltip(mouseX, mouseY, tooltip);
         }
-    }
-
-    /**
-     * Thin bar at the bottom of the cell, filled by the share of the order's total time this component took and
-     * coloured from yellow to red. The cell background is left untouched, so text and icons stay readable.
-     */
-    private void drawTimeBar(final int x, final int y, final double share) {
-        final int bottom = y + SECTION_HEIGHT - 1;
-        final int fill = Math.max(1, (int) Math.round((SECTION_LENGTH - 2) * share));
-        drawRect(x + 1, bottom - 2, x + 1 + fill, bottom - 1, lerpColor(BAR_COLOR_FAST, BAR_COLOR_SLOW, share));
     }
 
     private static int lerpColor(final int from, final int to, final double t) {
