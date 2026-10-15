@@ -16,15 +16,23 @@ import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
 
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
+import appeng.api.config.DiagnosticSortButton;
+import appeng.api.config.Settings;
+import appeng.api.config.SortDir;
+import appeng.api.config.TerminalStyle;
+import appeng.api.config.YesNo;
 import appeng.api.storage.data.IAEStack;
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiAeButton;
+import appeng.client.gui.widgets.GuiImgButton;
 import appeng.client.gui.widgets.GuiScrollbar;
 import appeng.client.gui.widgets.MEGuiTextField;
 import appeng.container.ContainerNull;
+import appeng.core.AEConfig;
 import appeng.util.Platform;
 import appeng.util.ReadableNumberConverter;
 import craftinspector.client.ClientHandler;
@@ -35,15 +43,18 @@ import craftinspector.network.MsgAction;
 /**
  * Shows the last crafting orders of the network. Looks like AE2's crafting status GUI: on the left the orders are
  * listed like crafting CPUs, on the right every component of the selected order is shown with the amount crafted, the
- * amount taken from storage and the time it took to craft it. The slowest components are highlighted in red, so the
- * bottlenecks of the network are easy to spot.
+ * amount taken from storage and the time it took to craft it. Sorting by time puts the slowest components first, so
+ * the bottlenecks of the network are easy to spot.
  */
 public class GuiCraftHistory extends AEBaseGui {
 
     private static final int GUI_WIDTH = 238;
     private static final int GUI_HEIGHT = 184;
 
-    private static final int ROWS = 6;
+    private static final int DISPLAYED_ROWS = 6;
+    private static final int SCROLLBAR_TOP = 19;
+    private static final int TEXTURE_BELOW_TOP_ROW_Y = 41;
+    private static final int TEXTURE_ABOVE_BOTTOM_ROW_Y = 51;
     private static final int COLUMNS = 3;
     private static final int SECTION_LENGTH = 67;
     private static final int SECTION_HEIGHT = 23;
@@ -51,7 +62,6 @@ public class GuiCraftHistory extends AEBaseGui {
     private static final int ITEMSTACK_TOP_OFFSET = 22;
 
     private static final int TABLE_WIDTH = 94;
-    private static final int TABLE_HEIGHT = 164;
     private static final int TABLE_SLOT_X = -TABLE_WIDTH + 9;
     private static final int TABLE_SLOT_Y = 19;
     private static final int TABLE_SLOT_WIDTH = 67;
@@ -60,11 +70,8 @@ public class GuiCraftHistory extends AEBaseGui {
     private static final int COLOR_TEXT = 0x404040;
     private static final int COLOR_NAME = 0x202020;
 
-    private enum SortMode {
-        TIME,
-        AMOUNT,
-        NAME
-    }
+    private static final DiagnosticSortButton[] SORT_MODES = { DiagnosticSortButton.TIME, DiagnosticSortButton.QTY,
+        DiagnosticSortButton.NAME };
 
     private final GuiScreen parent;
     private final GuiScrollbar tableScrollbar = new GuiScrollbar();
@@ -73,16 +80,20 @@ public class GuiCraftHistory extends AEBaseGui {
     private List<CraftRecord> records;
     private boolean collectionEnabled;
     private int selected = 0;
-    private SortMode sortMode = SortMode.TIME;
+    private DiagnosticSortButton sortMode = DiagnosticSortButton.TIME;
+    private SortDir sortDir = SortDir.DESCENDING;
     private boolean onlyCrafted = false;
+    private boolean tallMode;
+    private int rows = DISPLAYED_ROWS;
 
     /** Entries of the selected order after filtering and sorting. */
     private final List<ItemStat> visible = new ArrayList<>();
-    private long maxCraftTime;
 
     private GuiAeButton backButton;
-    private GuiAeButton sortButton;
-    private GuiAeButton filterButton;
+    private GuiImgButton sortButton;
+    private GuiImgButton sortDirButton;
+    private GuiImgButton filterButton;
+    private GuiImgButton tallModeButton;
     private GuiAeButton clearButton;
     private GuiAeButton refreshButton;
     private MEGuiTextField searchField;
@@ -94,11 +105,31 @@ public class GuiCraftHistory extends AEBaseGui {
         this.collectionEnabled = enabled;
         this.xSize = GUI_WIDTH;
         this.ySize = GUI_HEIGHT;
+        this.tallMode = AEConfig.instance.getConfigManager()
+            .getSetting(Settings.TERMINAL_STYLE) == TerminalStyle.TALL;
         this.setScrollBar(new GuiScrollbar());
         this.tableScrollbar.setLeft(-16)
-            .setTop(19)
-            .setWidth(12)
-            .setHeight(TABLE_HEIGHT - 27);
+            .setTop(SCROLLBAR_TOP)
+            .setWidth(12);
+    }
+
+    /** Same sizing as AE2's crafting status GUI, so the tall terminal style works here too. */
+    private void recalculateScreenSize() {
+        this.xSize = GUI_WIDTH;
+        if (this.tallMode) {
+            final int maxAvailableHeight = this.height - 64;
+            this.rows = Math
+                .max(DISPLAYED_ROWS, (maxAvailableHeight - (SCROLLBAR_TOP + SECTION_HEIGHT)) / SECTION_HEIGHT);
+            this.ySize = SCROLLBAR_TOP + SECTION_HEIGHT + 5 + this.rows * SECTION_HEIGHT;
+        } else {
+            this.rows = DISPLAYED_ROWS;
+            this.ySize = GUI_HEIGHT;
+        }
+        this.tableScrollbar.setHeight(this.getTableHeight() - 27);
+    }
+
+    private int getTableHeight() {
+        return this.rows * TABLE_SLOT_HEIGHT + 27;
     }
 
     public void setRecords(final List<CraftRecord> records) {
@@ -121,19 +152,36 @@ public class GuiCraftHistory extends AEBaseGui {
 
     @Override
     public void initGui() {
+        this.recalculateScreenSize();
         super.initGui();
 
         final int y = this.guiTop + this.ySize - 25;
         this.backButton = new GuiAeButton(0, this.guiLeft + 8, y, 50, 20, tr("back"), tr("back.tip"));
-        this.sortButton = new GuiAeButton(1, this.guiLeft + 60, y, 50, 20, "", tr("sort.tip"));
-        this.filterButton = new GuiAeButton(2, this.guiLeft + 111, y, 50, 20, "", tr("filter.tip"));
         this.clearButton = new GuiAeButton(3, this.guiLeft + 163, y, 50, 20, tr("clear"), tr("clear.tip"));
         this.refreshButton = new GuiAeButton(4, this.guiLeft - 20, this.guiTop + 2, 16, 16, "\u21BB", tr("refresh"));
         this.buttonList.add(this.backButton);
-        this.buttonList.add(this.sortButton);
-        this.buttonList.add(this.filterButton);
         this.buttonList.add(this.clearButton);
         this.buttonList.add(this.refreshButton);
+
+        // sorting buttons on the right side, like in AE2's crafting confirmation GUI
+        final int sideX = this.guiLeft + this.xSize + 2;
+        this.sortButton = new GuiImgButton(sideX, this.guiTop + 8, Settings.DIAGNOSTIC_SORT_BY, this.sortMode);
+        this.sortDirButton = new GuiImgButton(sideX, this.guiTop + 8 + 20, Settings.SORT_DIRECTION, this.sortDir);
+        this.filterButton = new GuiImgButton(
+            sideX,
+            this.guiTop + 8 + 20 * 2,
+            Settings.HIDE_STORED,
+            this.onlyCrafted ? YesNo.YES : YesNo.NO);
+        this.buttonList.add(this.sortButton);
+        this.buttonList.add(this.sortDirButton);
+        this.buttonList.add(this.filterButton);
+
+        this.tallModeButton = new GuiImgButton(
+            this.guiLeft - 18,
+            this.guiTop + this.ySize - 18,
+            Settings.TERMINAL_STYLE,
+            this.tallMode ? TerminalStyle.TALL : TerminalStyle.SMALL);
+        this.buttonList.add(this.tallModeButton);
 
         final String oldSearch = this.searchField == null ? "" : this.searchField.getText();
         this.searchField = new MEGuiTextField(76, 12, tr("search")) {
@@ -148,20 +196,11 @@ public class GuiCraftHistory extends AEBaseGui {
         this.searchField.y = this.guiTop + 5;
         this.searchField.setText(oldSearch, true);
 
-        this.updateButtonLabels();
         this.rebuild();
-    }
-
-    private void updateButtonLabels() {
-        this.sortButton.displayString = tr(
-            "sort." + this.sortMode.name()
-                .toLowerCase(Locale.ROOT));
-        this.filterButton.displayString = tr(this.onlyCrafted ? "filter.crafted" : "filter.all");
     }
 
     private void rebuild() {
         this.visible.clear();
-        this.maxCraftTime = 0;
         final CraftRecord record = this.getSelected();
         if (record != null) {
             final String search = this.searchField == null ? ""
@@ -169,7 +208,6 @@ public class GuiCraftHistory extends AEBaseGui {
                     .toLowerCase(Locale.ROOT)
                     .trim();
             for (final ItemStat stat : record.getStats()) {
-                this.maxCraftTime = Math.max(this.maxCraftTime, stat.getCraftTime(record.duration));
                 if (this.onlyCrafted && !stat.isCrafted()) {
                     continue;
                 }
@@ -185,28 +223,26 @@ public class GuiCraftHistory extends AEBaseGui {
             final Comparator<ItemStat> byName = Comparator.comparing(
                 s -> Platform.getItemDisplayName(s.stack)
                     .toLowerCase(Locale.ROOT));
-            switch (this.sortMode) {
-                case TIME -> this.visible.sort(
-                    Comparator.comparingLong((ItemStat s) -> s.getCraftTime(duration))
-                        .reversed()
-                        .thenComparing(
-                            Comparator.comparingLong(GuiCraftHistory::amountOf)
-                                .reversed()));
-                case AMOUNT -> this.visible.sort(
-                    Comparator.comparingLong(GuiCraftHistory::amountOf)
-                        .reversed());
-                case NAME -> this.visible.sort(byName);
+            Comparator<ItemStat> order = switch (this.sortMode) {
+                case QTY -> Comparator.comparingLong(GuiCraftHistory::amountOf);
+                case NAME -> byName;
+                default -> Comparator.comparingLong((ItemStat s) -> s.getCraftTime(duration))
+                    .thenComparing(Comparator.comparingLong(GuiCraftHistory::amountOf));
+            };
+            if (this.sortDir == SortDir.DESCENDING) {
+                order = order.reversed();
             }
+            this.visible.sort(order);
         }
 
-        final int rows = (this.visible.size() + COLUMNS - 1) / COLUMNS;
+        final int lines = (this.visible.size() + COLUMNS - 1) / COLUMNS;
         this.getScrollBar()
-            .setTop(19)
+            .setTop(SCROLLBAR_TOP)
             .setLeft(218)
-            .setHeight(137);
+            .setHeight(this.ySize - 47);
         this.getScrollBar()
-            .setRange(0, Math.max(0, rows - ROWS), 1);
-        this.tableScrollbar.setRange(0, Math.max(0, this.records.size() - ROWS), 1);
+            .setRange(0, Math.max(0, lines - this.rows), 1);
+        this.tableScrollbar.setRange(0, Math.max(0, this.records.size() - this.rows), 1);
     }
 
     private static long amountOf(final ItemStat stat) {
@@ -220,14 +256,29 @@ public class GuiCraftHistory extends AEBaseGui {
         if (btn == this.backButton) {
             this.goBack();
         } else if (btn == this.sortButton) {
-            final SortMode[] modes = SortMode.values();
-            this.sortMode = modes[(this.sortMode.ordinal() + 1) % modes.length];
-            this.updateButtonLabels();
+            int index = 0;
+            for (int i = 0; i < SORT_MODES.length; i++) {
+                if (SORT_MODES[i] == this.sortMode) {
+                    index = i;
+                }
+            }
+            final int step = Mouse.isButtonDown(1) ? SORT_MODES.length - 1 : 1;
+            this.sortMode = SORT_MODES[(index + step) % SORT_MODES.length];
+            this.sortButton.set(this.sortMode);
+            this.rebuild();
+        } else if (btn == this.sortDirButton) {
+            this.sortDir = this.sortDir == SortDir.ASCENDING ? SortDir.DESCENDING : SortDir.ASCENDING;
+            this.sortDirButton.set(this.sortDir);
             this.rebuild();
         } else if (btn == this.filterButton) {
             this.onlyCrafted = !this.onlyCrafted;
-            this.updateButtonLabels();
+            this.filterButton.set(this.onlyCrafted ? YesNo.YES : YesNo.NO);
             this.rebuild();
+        } else if (btn == this.tallModeButton) {
+            this.tallMode = !this.tallMode;
+            AEConfig.instance.getConfigManager()
+                .putSetting(Settings.TERMINAL_STYLE, this.tallMode ? TerminalStyle.TALL : TerminalStyle.SMALL);
+            this.setWorldAndResolution(this.mc, this.width, this.height);
         } else if (btn == this.clearButton) {
             if (isShiftKeyDown()) {
                 ClientHandler.send(MsgAction.CLEAR);
@@ -304,7 +355,7 @@ public class GuiCraftHistory extends AEBaseGui {
     protected boolean mouseWheelEvent(final int x, final int y, final int wheel) {
         final int rx = x - this.guiLeft;
         final int ry = y - this.guiTop;
-        if (rx >= -TABLE_WIDTH && rx < 0 && ry >= 0 && ry < TABLE_HEIGHT) {
+        if (rx >= -TABLE_WIDTH && rx < 0 && ry >= 0 && ry < this.getTableHeight()) {
             this.tableScrollbar.wheel(wheel);
             return true;
         }
@@ -315,7 +366,7 @@ public class GuiCraftHistory extends AEBaseGui {
     private int hitRecord(final int x, final int y) {
         if (x < TABLE_SLOT_X || x >= TABLE_SLOT_X + TABLE_SLOT_WIDTH
             || y < TABLE_SLOT_Y
-            || y >= TABLE_SLOT_Y + ROWS * TABLE_SLOT_HEIGHT) {
+            || y >= TABLE_SLOT_Y + this.rows * TABLE_SLOT_HEIGHT) {
             return -1;
         }
         final int index = this.tableScrollbar.getCurrentScroll() + (y - TABLE_SLOT_Y) / TABLE_SLOT_HEIGHT;
@@ -324,7 +375,7 @@ public class GuiCraftHistory extends AEBaseGui {
 
     /** @return index (into the visible part of the grid) of the entry under the cursor, -1 if none. */
     private int hitEntry(final int x, final int y) {
-        for (int slot = 0; slot < COLUMNS * ROWS; slot++) {
+        for (int slot = 0; slot < COLUMNS * this.rows; slot++) {
             final int column = slot % COLUMNS;
             final int row = slot / COLUMNS;
             final int minX = ITEMSTACK_LEFT_OFFSET + column * (1 + SECTION_LENGTH);
@@ -348,11 +399,44 @@ public class GuiCraftHistory extends AEBaseGui {
     @Override
     public void drawBG(final int offsetX, final int offsetY, final int mouseX, final int mouseY) {
         this.bindTexture("guis/craftingcpu.png");
-        this.drawTexturedModalRect(offsetX, offsetY, 0, 0, this.xSize, this.ySize);
+        if (this.tallMode) {
+            this.drawTexturedModalRect(offsetX, offsetY, 0, 0, this.xSize, TEXTURE_BELOW_TOP_ROW_Y);
+            int y = TEXTURE_BELOW_TOP_ROW_Y;
+            // first and last row are pre-baked
+            for (int row = 1; row < this.rows - 1; row++) {
+                this.drawTexturedModalRect(
+                    offsetX,
+                    offsetY + y,
+                    0,
+                    TEXTURE_BELOW_TOP_ROW_Y,
+                    this.xSize,
+                    SECTION_HEIGHT);
+                y += SECTION_HEIGHT;
+            }
+            this.drawTexturedModalRect(
+                offsetX,
+                offsetY + y,
+                0,
+                GUI_HEIGHT - TEXTURE_ABOVE_BOTTOM_ROW_Y,
+                this.xSize,
+                TEXTURE_ABOVE_BOTTOM_ROW_Y);
+        } else {
+            this.drawTexturedModalRect(offsetX, offsetY, 0, 0, this.xSize, this.ySize);
+        }
 
         this.bindTexture("guis/cpu_selector.png");
         final int tableLeft = offsetX - TABLE_WIDTH;
-        this.drawTexturedModalRect(tableLeft, offsetY, 0, 0, TABLE_WIDTH, TABLE_HEIGHT);
+        if (this.tallMode) {
+            this.drawTexturedModalRect(tableLeft, offsetY, 0, 0, TABLE_WIDTH, 41);
+            int y = 41;
+            for (int row = 1; row < this.rows - 1; row++) {
+                this.drawTexturedModalRect(tableLeft, offsetY + y, 0, 41, TABLE_WIDTH, 23);
+                y += 23;
+            }
+            this.drawTexturedModalRect(tableLeft, offsetY + y, 0, 133, TABLE_WIDTH, 31);
+        } else {
+            this.drawTexturedModalRect(tableLeft, offsetY, 0, 0, TABLE_WIDTH, this.getTableHeight());
+        }
         // same 3 missing border pixels AE2 fixes for its CPU table
         this.drawTexturedModalRect(tableLeft + 94, offsetY, 93, 0, 1, 1);
         this.drawTexturedModalRect(tableLeft + 95, offsetY, 93, 0, 1, 1);
@@ -393,7 +477,7 @@ public class GuiCraftHistory extends AEBaseGui {
                 message = tr("nothing");
             }
             final List<String> lines = this.fontRendererObj.listFormattedStringToWidth(message, 190);
-            int y = 70;
+            int y = SCROLLBAR_TOP + (this.ySize - 47) / 2 - lines.size() * 5;
             for (final String line : lines) {
                 this.fontRendererObj
                     .drawString(line, 113 - this.fontRendererObj.getStringWidth(line) / 2, y, COLOR_TEXT);
@@ -407,7 +491,7 @@ public class GuiCraftHistory extends AEBaseGui {
         final int first = this.tableScrollbar.getCurrentScroll();
         final int hovered = this.hitRecord(mouseX, mouseY);
 
-        for (int i = first; i < first + ROWS && i < this.records.size(); i++) {
+        for (int i = first; i < first + this.rows && i < this.records.size(); i++) {
             final CraftRecord record = this.records.get(i);
             final int x = TABLE_SLOT_X;
             final int y = TABLE_SLOT_Y + (i - first) * TABLE_SLOT_HEIGHT;
@@ -465,7 +549,7 @@ public class GuiCraftHistory extends AEBaseGui {
         }
         final int start = this.getScrollBar()
             .getCurrentScroll() * COLUMNS;
-        final int end = Math.min(start + COLUMNS * ROWS, this.visible.size());
+        final int end = Math.min(start + COLUMNS * this.rows, this.visible.size());
         final int hovered = this.hitEntry(mouseX, mouseY);
         String tooltip = null;
 
@@ -475,12 +559,8 @@ public class GuiCraftHistory extends AEBaseGui {
             final int column = slot % COLUMNS;
             final int row = slot / COLUMNS;
             final int cellX = column * (1 + SECTION_LENGTH) + ITEMSTACK_LEFT_OFFSET;
-            final int cellY = row * SECTION_HEIGHT + ITEMSTACK_TOP_OFFSET - 3;
 
             final long time = stat.getCraftTime(record.duration);
-            if (time > 0 && this.maxCraftTime > 0) {
-                drawRect(cellX, cellY, cellX + SECTION_LENGTH, cellY + SECTION_HEIGHT - 1, heatColor(time));
-            }
 
             final List<String> lines = new ArrayList<>();
             if (stat.isCrafted()) {
@@ -694,15 +774,6 @@ public class GuiCraftHistory extends AEBaseGui {
     }
 
     // ------------------------------------------------------------------ helpers
-
-    private int heatColor(final long time) {
-        final double ratio = Math.min(1.0, (double) time / (double) this.maxCraftTime);
-        // green (fast) -> yellow -> red (bottleneck)
-        final int r = (int) (ratio < 0.5 ? 255 * ratio * 2 : 255);
-        final int g = (int) (ratio < 0.5 ? 200 : 200 * (1 - ratio) * 2);
-        final int a = (int) (0x30 + 0x50 * ratio);
-        return (a << 24) | (r << 16) | (g << 8) | 0x20;
-    }
 
     private static int statusColor(final int status) {
         return switch (status) {
