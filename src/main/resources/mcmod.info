@@ -3,19 +3,19 @@
 	"modList": [{
 		"modid": "${modId}",
 		"name": "${modName}",
-		"description": "An example mod for Minecraft 1.7.10 with Forge focused on a stable setup.",
+		"description": "Crafting order history for Applied Energistics 2: what every order used, crafted and how long each component took, to find the bottlenecks of your ME network.",
 		"version": "${modVersion}",
 		"mcversion": "${minecraftVersion}",
-		"url": "https://github.com/SinTh0r4s/CraftInspector",
+		"url": "https://github.com/evgengoldwar/CraftInspector",
 		"updateUrl": "",
-		"authorList": ["SinTho0r4s"],
+		"authorList": ["evgengoldwar"],
 		"credits": "",
 		"logoFile": "",
 		"screenshots": [],
 		"parent": "",
-		"requiredMods": [],
-		"dependencies": [],
+		"requiredMods": ["appliedenergistics2"],
+		"dependencies": ["appliedenergistics2"],
 		"dependants": [],
-		"useDependencyInformation": false
+		"useDependencyInformation": true
 	}]
 }

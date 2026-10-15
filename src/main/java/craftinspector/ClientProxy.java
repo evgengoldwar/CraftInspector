@@ -1,8 +1,17 @@
 package craftinspector;
 
+import craftinspector.client.ClientHandler;
+import craftinspector.network.MsgHistoryPart;
+
 public class ClientProxy extends CommonProxy {
 
-    // Override CommonProxy methods here, if you want a different behaviour on the client (e.g. registering renders).
-    // Don't forget to call the super methods as well.
+    @Override
+    public void onState(boolean enabled, int records) {
+        ClientHandler.onState(enabled, records);
+    }
 
+    @Override
+    public void onHistoryPart(MsgHistoryPart part) {
+        ClientHandler.onHistoryPart(part);
+    }
 }
