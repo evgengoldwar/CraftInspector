@@ -70,6 +70,13 @@ public class GuiCraftHistory extends AEBaseGui {
     private static final int COLOR_TEXT = 0x404040;
     private static final int COLOR_NAME = 0x202020;
 
+    /** Cell background for a component that took (almost) no time of the order. */
+    private static final int TIME_COLOR_FAST = 0xFFF7F7F7;
+    /** Cell background for a component that took the whole order time; light enough for dark text. */
+    private static final int TIME_COLOR_SLOW = 0xFFF28B82;
+    private static final int BAR_COLOR_FAST = 0xFFFFD2CC;
+    private static final int BAR_COLOR_SLOW = 0xFFD32F2F;
+
     private static final DiagnosticSortButton[] SORT_MODES = { DiagnosticSortButton.TIME, DiagnosticSortButton.QTY,
         DiagnosticSortButton.NAME };
 
@@ -553,6 +560,12 @@ public class GuiCraftHistory extends AEBaseGui {
             final int cellX = column * (1 + SECTION_LENGTH) + ITEMSTACK_LEFT_OFFSET;
 
             final long time = stat.getCraftTime(record.duration);
+            final double share = time > 0 && record.duration > 0
+                ? Math.min(1.0, (double) time / (double) record.duration)
+                : 0;
+            if (time > 0) {
+                this.drawTimeBackground(cellX, row * SECTION_HEIGHT + ITEMSTACK_TOP_OFFSET - 3, share);
+            }
 
             final List<String> lines = new ArrayList<>();
             if (stat.isCrafted()) {
@@ -567,7 +580,7 @@ public class GuiCraftHistory extends AEBaseGui {
                 lines.add(tr("missing") + ": " + ReadableNumberConverter.INSTANCE.toWideReadableForm(stat.emitted));
             }
             if (time > 0) {
-                lines.add(tr("time") + ": " + formatTime(time));
+                lines.add(tr("time") + ": " + formatTime(time) + " (" + Math.round(share * 100) + "%)");
             }
 
             GL11.glPushMatrix();
@@ -595,6 +608,35 @@ public class GuiCraftHistory extends AEBaseGui {
         if (tooltip != null) {
             this.drawTooltip(mouseX, mouseY, tooltip);
         }
+    }
+
+    /**
+     * Tints the cell from white to red by the share of the order's total time this component took, and draws a thin
+     * bar with the same share at the bottom. The tint stays light, so the dark text remains readable.
+     */
+    private void drawTimeBackground(final int x, final int y, final double share) {
+        final int right = x + SECTION_LENGTH;
+        final int bottom = y + SECTION_HEIGHT - 1;
+        drawRect(x, y, right, bottom, lerpColor(TIME_COLOR_FAST, TIME_COLOR_SLOW, share));
+
+        // share bar: dark track with a white -> red fill
+        drawRect(x + 1, bottom - 2, right - 1, bottom - 1, 0x40000000);
+        final int fill = (int) Math.round((SECTION_LENGTH - 2) * share);
+        if (fill > 0) {
+            drawRect(x + 1, bottom - 2, x + 1 + fill, bottom - 1, lerpColor(BAR_COLOR_FAST, BAR_COLOR_SLOW, share));
+        }
+    }
+
+    private static int lerpColor(final int from, final int to, final double t) {
+        final int a = lerp((from >>> 24) & 0xFF, (to >>> 24) & 0xFF, t);
+        final int r = lerp((from >> 16) & 0xFF, (to >> 16) & 0xFF, t);
+        final int g = lerp((from >> 8) & 0xFF, (to >> 8) & 0xFF, t);
+        final int b = lerp(from & 0xFF, to & 0xFF, t);
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    private static int lerp(final int from, final int to, final double t) {
+        return (int) Math.round(from + (to - from) * t);
     }
 
     private void drawStack(final IAEStack<?> stack, final int x, final int y) {
