@@ -31,7 +31,11 @@ public final class ClientHandler {
     private ClientHandler() {}
 
     public static void send(final byte action) {
-        CINetwork.CHANNEL.sendToServer(new MsgAction(action));
+        send(action, 0);
+    }
+
+    public static void send(final byte action, final long arg) {
+        CINetwork.CHANNEL.sendToServer(new MsgAction(action, arg));
     }
 
     public static void requestHistory(final boolean open) {

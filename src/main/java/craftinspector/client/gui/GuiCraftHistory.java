@@ -102,7 +102,6 @@ public class GuiCraftHistory extends AEBaseGui {
     private GuiImgButton filterButton;
     private GuiImgButton tallModeButton;
     private GuiAeButton clearButton;
-    private GuiAeButton refreshButton;
     private MEGuiTextField searchField;
 
     public GuiCraftHistory(final GuiScreen parent, final List<CraftRecord> records, final boolean enabled) {
@@ -165,10 +164,8 @@ public class GuiCraftHistory extends AEBaseGui {
         final int y = this.guiTop + this.ySize - 25;
         this.backButton = new GuiAeButton(0, this.guiLeft + 8, y, 50, 20, tr("back"), tr("back.tip"));
         this.clearButton = new GuiAeButton(3, this.guiLeft + 163, y, 50, 20, tr("clear"), tr("clear.tip"));
-        this.refreshButton = new GuiAeButton(4, this.guiLeft - 20, this.guiTop + 2, 16, 16, "\u21BB", tr("refresh"));
         this.buttonList.add(this.backButton);
         this.buttonList.add(this.clearButton);
-        this.buttonList.add(this.refreshButton);
 
         // sorting buttons on the right side, like in AE2's crafting confirmation GUI
         final int sideX = this.guiLeft + this.xSize + 2;
@@ -287,11 +284,12 @@ public class GuiCraftHistory extends AEBaseGui {
                 .putSetting(Settings.TERMINAL_STYLE, this.tallMode ? TerminalStyle.TALL : TerminalStyle.SMALL);
             this.setWorldAndResolution(this.mc, this.width, this.height);
         } else if (btn == this.clearButton) {
+            final CraftRecord record = this.getSelected();
             if (isShiftKeyDown()) {
                 ClientHandler.send(MsgAction.CLEAR);
+            } else if (record != null && record.status != CraftRecord.STATUS_RUNNING) {
+                ClientHandler.send(MsgAction.DELETE, record.uid);
             }
-        } else if (btn == this.refreshButton) {
-            ClientHandler.requestHistory(false);
         } else {
             super.actionPerformed(btn);
         }
@@ -390,8 +388,15 @@ public class GuiCraftHistory extends AEBaseGui {
 
     @Override
     public void drawScreen(final int mouseX, final int mouseY, final float partialTicks) {
-        this.clearButton.enabled = !this.records.isEmpty();
-        this.clearButton.displayString = (isShiftKeyDown() ? EnumChatFormatting.RED : "") + tr("clear");
+        final CraftRecord selectedRecord = this.getSelected();
+        if (isShiftKeyDown()) {
+            this.clearButton.enabled = !this.records.isEmpty();
+            this.clearButton.displayString = EnumChatFormatting.RED + tr("clear.all");
+        } else {
+            // running orders belong to their CPU and can't be deleted
+            this.clearButton.enabled = selectedRecord != null && selectedRecord.status != CraftRecord.STATUS_RUNNING;
+            this.clearButton.displayString = tr("clear");
+        }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 

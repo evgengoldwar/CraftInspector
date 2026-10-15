@@ -29,7 +29,7 @@ public final class ServerHandler {
 
     private ServerHandler() {}
 
-    public static void handle(final EntityPlayerMP player, final byte action) {
+    public static void handle(final EntityPlayerMP player, final byte action, final long arg) {
         if (player == null || !(player.openContainer instanceof ContainerCraftingCPU container)) {
             return;
         }
@@ -61,6 +61,12 @@ public final class ServerHandler {
             case MsgAction.CLEAR -> {
                 if (canModify(grid, player)) {
                     history.clear();
+                }
+                sendHistory(player, grid, history);
+            }
+            case MsgAction.DELETE -> {
+                if (canModify(grid, player)) {
+                    history.remove(arg);
                 }
                 sendHistory(player, grid, history);
             }

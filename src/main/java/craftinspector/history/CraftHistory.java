@@ -50,6 +50,11 @@ public class CraftHistory {
         this.records.clear();
     }
 
+    /** Removes the finished order with the given uid. */
+    public void remove(final long uid) {
+        this.records.removeIf(record -> record.uid == uid);
+    }
+
     private void trim() {
         while (this.records.size() > Math.max(1, Config.historySize)) {
             this.records.remove(this.records.size() - 1);

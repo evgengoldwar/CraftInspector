@@ -20,30 +20,40 @@ public class MsgAction implements IMessage {
     public static final byte RESYNC = 3;
     /** Clear the order history. */
     public static final byte CLEAR = 4;
+    /** Delete one order from the history, {@link #arg} is its uid. */
+    public static final byte DELETE = 5;
 
     public byte action;
+    public long arg;
 
     public MsgAction() {}
 
     public MsgAction(final byte action) {
+        this(action, 0);
+    }
+
+    public MsgAction(final byte action, final long arg) {
         this.action = action;
+        this.arg = arg;
     }
 
     @Override
     public void fromBytes(final ByteBuf buf) {
         this.action = buf.readByte();
+        this.arg = buf.readLong();
     }
 
     @Override
     public void toBytes(final ByteBuf buf) {
         buf.writeByte(this.action);
+        buf.writeLong(this.arg);
     }
 
     public static class Handler implements IMessageHandler<MsgAction, IMessage> {
 
         @Override
         public IMessage onMessage(final MsgAction message, final MessageContext ctx) {
-            ServerHandler.handle(ctx.getServerHandler().playerEntity, message.action);
+            ServerHandler.handle(ctx.getServerHandler().playerEntity, message.action, message.arg);
             return null;
         }
     }
